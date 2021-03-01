@@ -1,0 +1,75 @@
+Без контроля индентификатора 
+POST /catalog/product
+{
+"sku": "SP000003",
+"title": "Mastering Elasticsearch",
+"description": "Mastering Elasticsearch",
+"author": "Bharvi Dixit",
+"price": 54.99
+}
+
+По соглашениям REST POST используется для создания нового
+ресурса, а PUT — для обновления существующего ресурса. В нашем
+случае использование PUT означает следующее: «Я знаю, какой
+идентификатор хочу присвоить, следовательно, я указываю его в
+процессе индексирования документа.
+
+Get API полезен для получения документа в тех случаях, когда уже
+известен его идентификатор. По сути, это операция GET по
+основному ключу:
+GET /catalog/product/AVrASKqgaBGmnAMj1SBe
+Формат запроса следующий: GET /<index>/<type>/
+
+
+Update API
+Update API используется для обновления существующего
+идентификатора документа.
+Формат такого запроса следующий: POST
+<index>/<type>/<id>/_update — с документом JSON в теле
+запроса:
+POST /catalog/product/1/_update
+{
+"doc": {
+"price": "28.99"
+}
+}
+
+В следующем примере мы используем doc_as_upsert для
+слияния с документом (идентификатор 3) или вставки нового
+документа, если он не существует:
+POST /catalog/product/3/_update
+{
+"doc": {
+"author": "Albert Paro",
+"title": "Elasticsearch 5.0 Cookbook",
+"description": "Elasticsearch 5.0 Cookbook
+Third Edition",
+"price": "54.99"
+},
+"doc_as_upsert": true
+}
+
+
+ Мы можем обновить значение поля, базируясь на текущем
+значении этого или другого поля в документе. В следующем коде
+используется встроенный скрипт, увеличивающий стоимость
+определенного продукта на два:
+POST /catalog/product/AVrASKqgaBGmnAMj1SBe/_update
+{
+"script": {
+"inline": "ctx._source.price +=
+params.increment",
+"lang": "painless",
+"params": {
+"increment": 2
+}
+}
+}
+Поддержка скриптов позволяет прочитать текущее значение,
+увеличить его на какую-либо величину и сохранить в пределах
+одной операции. Этот встроенный скрипт создан с помощью
+собственного скриптового языка Elasticsearch.
+
+Delete API используется для удаления документа по
+идентификатору:
+DELETE /catalog/product/AVrASKqgaBGmnAMj1SBe

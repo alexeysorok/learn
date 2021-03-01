@@ -1,0 +1,51 @@
+Вы можете создать индекс и указать количество шардов и копий:
+PUT /catalog
+{
+"settings": {
+"index": {
+"number_of_shards": 5,
+"number_of_replicas": 2
+}
+}
+}
+
+Тип может быть добавлен внутри индекса после его создания.
+Можно указать разметку типа следующим образом:
+PUT /catalog/_mapping/category
+{
+"properties": {
+"name": {
+"type": "text"
+}
+}
+
+Эта команда создает в существующем каталоге индекса тип под
+названием category с одним полем текстового типа. Добавим
+несколько документов после создания нового типа:
+POST /catalog/category
+{
+"name": "books"
+} P
+OST /catalog/category
+{
+"name": "phones"
+}
+
+POST /catalog/category
+{
+"name": "music",
+"description": "On-demand streaming music"
+}
+
+Обновление разметки
+Разметка для новых полей может быть добавлена после того, как
+создан тип. Разметка может быть обновлена с помощью API
+разметки PUT. Добавим поле code с типом keyword без анализа:
+PUT /catalog/_mapping/category
+{
+"properties": {
+"code": {
+"type": "keyword"
+}
+}
+}
