@@ -1,0 +1,174 @@
+gcloud config set compute/zone us-east1-b
+gcloud config set compute/region us-east1
+
+gcloud config set compute/zone us-east1-b
+
+
+gcloud compute instances create nucleus-jumphost --machine-type f1-micro 
+
+
+gcloud container clusters create nucleus-cluster 
+
+kubectl create deployment nucleus-app --image=gcr.io/google-samples/hello-app:2.0
+
+kubectl expose deployment nucleus-app --type=LoadBalancer --port 8080
+
+
+# Create an instance template.
+gcloud compute instance-templates create nucleus-lb-backend-template \
+   --region=us-central1 \
+   --network=default \
+   --subnet=default \
+   --tags=allow-health-check \
+   --image-family=debian-9 \
+   --image-project=debian-cloud \
+   --metadata-from-file=startup-script=startup.sh
+
+
+
+# Create an instance template.
+gcloud compute instance-templates create nucleus-lb-backend-template \   
+   --tags=allow-health-check \
+   --metadata=startup-script='#! /bin/bash
+     apt-get update
+     apt-get install -y nginx
+     service nginx start'
+
+     sed -i -- 's/nginx/Google Cloud Platform - '"\$HOSTNAME"'/' /var/www/html/index.nginx-debian.html"
+
+
+
+gcloud compute instances create nucleus-www1 \ 
+--image-family debian-9 \ 
+--image-project debian-cloud \ 
+--zone us-central1-a \ 
+--tags network-lb-tag \ 
+--metadata startup-script="#! /bin/bash
+  apt-get update
+  apt-get install -y nginx
+  service nginx start"
+
+
+gcloud compute instances create www4 \
+  --image-family debian-9 \
+  --image-project debian-cloud \ 
+  --tags network-lb-tag \
+  --metadata startup-script="#! /bin/bash
+    sudo apt-get update
+    apt-get install -y nginx
+    service nginx start
+    sed -i -- 's/nginx/Google Cloud Platform - '"\$HOSTNAME"'/' /var/www/html/index.nginx-debian.html"
+
+
+ 
+
+
+
+# Create a target pool.
+gcloud compute target-pools create nucleus-www-pool \
+    --http-health-check nucleus-http-basic-check --region us-east1
+
+gcloud compute target-pools add-instances nucleus-www-pool \
+    --instances nucleus-www1,nucleus-www2
+
+
+#Create a managed instance group.
+gcloud compute instance-groups managed create nucleus-lb-backend-group \
+   --template=nucleus-lb-backend-template --size=2
+
+#Create a firewall rule to allow traffic (80/tcp).
+gcloud compute firewall-rules create nucleus-fw-allow-health-check \    
+    --target-tags=allow-health-check \
+    --rules=tcp:80
+
+
+#Create a health check.
+    gcloud compute health-checks create http nucleus-http-basic-check \
+        --port 80 --region us-east1
+
+#Create a backend service, and attach the managed instance group.
+    gcloud compute backend-services create nucleus-web-backend-service \
+        --protocol=HTTP \
+        --port-name=http \
+        --health-checks=nucleus-http-basic-check \
+        --global
+
+        gcloud compute backend-services add-backend nucleus-web-backend-service \
+        --instance-group=nucleus-lb-backend-group \      
+        --global
+
+
+#Create a URL map, and target the HTTP proxy to route requests to your URL map.
+    gcloud compute url-maps create nucleus-web-map-http \
+        --default-service nucleus-web-backend-service
+
+
+    gcloud compute target-http-proxies create nucleus-http-lb-proxy \
+       --url-map nucleus-web-map-http
+
+
+#Create a forwarding rule.
+gcloud compute forwarding-rules create nucleus-http-content-rule \
+        --target-http-proxy=nucleus-http-lb-proxy \
+        --ports=80
+
+
+
+
+gcloud compute instance-templates create lb-backend-template \
+   --region=us-central1 \
+   --network=default \
+   --subnet=default \
+   --tags=allow-health-check \
+   --image-family=debian-9 \
+   --image-project=debian-cloud \
+   --metadata-from-file=startup-script=startup.sh
+
+gcloud compute instance-groups managed create nucleus-lb-backend-group \
+   --template=lb-backend-template --size=2 --zone=us-central1-a
+
+gcloud compute firewall-rules create fw-allow-health-check \
+    --network=default \
+    --action=allow \
+    --direction=ingress \
+    --source-ranges=130.211.0.0/22,35.191.0.0/16 \
+    --target-tags=allow-health-check \
+    --rules=tcp:80
+
+gcloud compute addresses create lb-ipv4-1 \
+    --ip-version=IPV4 \
+    --global
+
+gcloud compute addresses describe lb-ipv4-1 \
+    --format="get(address)" \
+    --global
+
+gcloud compute health-checks create http http-basic-check \
+    --port 80
+
+    gcloud compute backend-services create web-backend-service \
+        --protocol=HTTP \
+        --port-name=http \
+        --health-checks=http-basic-check \
+        --global
+
+            gcloud compute url-maps create web-map-http \
+        --default-service web-backend-service
+
+            gcloud compute target-http-proxies create http-lb-proxy \
+        --url-map web-map-http
+
+            gcloud compute forwarding-rules create http-content-rule \
+        --address=lb-ipv4-1\
+        --global \
+        --target-http-proxy=http-lb-proxy \
+        --ports=80
+
+
+gcloud compute target-pools create nginx-pool --region us-east1
+
+gcloud compute instance-groups managed create nucleus-nginx-group \
+    --base-instance-name nginx \
+    --size 2 \
+    --template nginx-template \
+    --target-pool nginx-pool
